@@ -32,6 +32,7 @@ Examples:
 >java -jar battsett.jar 192.168.1.107
 Charge limit 100% is disabled
 Discharge limit 100% is disabled
+
 Disable discharging:
 >java -jar battsett.jar 192.168.1.107 out 0%
 Charge limit 100% is disabled
