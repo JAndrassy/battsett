@@ -1,6 +1,6 @@
-BattSett is a Java command line program for setting battery charging and discharging limits of the Fronius Symo Hybrid. The settings are read and applied using Modbus TCP SunSpec registers of the Symo Datalogger.
+BattSett is a Java command line program for setting battery charging and discharging limits of the Fronius Symo Hybrid. The settings are read and applied using Modbus TCP SunSpec registers of the Symo Datamanager.
 
-To use the program you must enable Modbus TCP in Symo Datalogger web interface. In Settings -> Modbus, set "tcp" and "Inverter control via Modbus".
+To use the program you must enable Modbus TCP in Symo Datamanager web interface. In Settings -> Modbus, set "tcp" and "Inverter control via Modbus".
 
 The program is released as a java jar file. 
 
