@@ -2,10 +2,10 @@
 
 BattSett is a Java command line program for setting battery charging and discharging limits of the Fronius Symo Hybrid. The settings are read and applied using Modbus TCP SunSpec registers of the Symo Datamanager.
 
-To use the program you must enable Modbus TCP in Symo Datamanager web interface. In Settings -> Modbus, set "tcp" and "Inverter control via Modbus".
+To use the program, you must enable Modbus TCP in Symo Datamanager web interface. In Settings -> Modbus, set "tcp" and "Inverter control via Modbus".
 
 The program is released as a java [jar file](https://github.com/jandrassy/battsett/releases/download/0.1/battsett.jar).
-It can be executed on the command line with:
+It can be executed on the command line with Java 8:
 
 `java -jar battsett.jar`
 
