@@ -25,6 +25,11 @@ import java.net.Socket;
 
 public class BattSett {
 
+  static int FNC_READ_REGS = 0x03;
+  static int FNC_WRITE_SINGLE = 0x06;
+  static int FNC_ERR_FLAG = 0x80;
+  static int ERR_SLAVE_DEVICE_FAILURE = 4;
+  
   private static int REGISTER_START = 40302 + 6;
   private static int REG_StorCtl_Mod = 6 - 6;
   private static int REG_OutWRte = 13 - 6;
@@ -40,7 +45,7 @@ public class BattSett {
   public int[] modbusRead(int uid, int address, int len) throws IOException {
     OutputStream os = socket.getOutputStream();
 
-    byte[] req = new byte[] { 0, 1, 0, 0, 0, 6, (byte) uid, 0x03, // header
+    byte[] req = new byte[] { 0, 1, 0, 0, 0, 6, (byte) uid, (byte) FNC_READ_REGS, // header
         (byte) (address / 256), (byte) (address % 256), 0, (byte) len };
 
     os.write(req);
@@ -49,7 +54,7 @@ public class BattSett {
     InputStream is = socket.getInputStream();
     is.skip(7); // ids
     int code = is.read();
-    if (code == 0x83)
+    if (code == (FNC_ERR_FLAG | FNC_READ_REGS)) 
       throw new RuntimeException("modbus error " + is.read());
     if (code != 3)
       throw new RuntimeException("modbus response error fnc = " + code);
@@ -60,7 +65,9 @@ public class BattSett {
     while (true) {
       if (is.read(buff) == -1)
         break;
-      response[i++] = buff[0] * 256 + buff[1];
+      int hi = buff[0] & 0xFF;
+      int lo = buff[1] & 0xFF;
+      response[i++] = hi * 256 + lo;
       if (i == l)
         break;
     }
@@ -70,7 +77,7 @@ public class BattSett {
   public int modbusWriteSingle(int uid, int address, int val) throws IOException {
     OutputStream os = socket.getOutputStream();
 
-    byte[] req = new byte[] { 0, 1, 0, 0, 0, 6, (byte) uid, 0x06, // header
+    byte[] req = new byte[] { 0, 1, 0, 0, 0, 6, (byte) uid, (byte) FNC_WRITE_SINGLE, // header
         (byte) (address / 256), (byte) (address % 256), 
         (byte) (val / 256), (byte) (val % 256)};
 
@@ -80,8 +87,12 @@ public class BattSett {
     InputStream is = socket.getInputStream();
     is.skip(7); // ids
     int code = is.read();
-    if (code == 0x83)
-      throw new RuntimeException("modbus error " + is.read());
+    if (code == (FNC_ERR_FLAG | FNC_WRITE_SINGLE)) {
+      int ec = is.read();
+      if (ec == ERR_SLAVE_DEVICE_FAILURE)
+        throw new RuntimeException("Modbus error. Check if 'Inverter control via Modbus' is enabled.");
+      throw new RuntimeException("modbus error " + ec);
+    }
     if (code != 6)
       throw new RuntimeException("modbus response error fnc = " + code);
     int response;
@@ -90,10 +101,12 @@ public class BattSett {
       throw new RuntimeException("response error");
     if (is.read(buff) == -1)  // value
       throw new RuntimeException("response error");
-    response = buff[0] * 256 + buff[1];
+    int hi = buff[0] & 0xFF;
+    int lo = buff[1] & 0xFF;
+    response = hi * 256 + lo;
     return response;
   }
-
+  
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
       System.err.println("usage: battset.jar <host>[:<port>] in|i|out|o [0%|<limit>[%]] [enable|1|disable|0]");
@@ -178,7 +191,7 @@ public class BattSett {
 
   }
 
-  private static String bit2s(int value, int mask) {
+  static String bit2s(int value, int mask) {
     return (value & mask) != 0 ? "enabled" : "disabled";
   }
 
