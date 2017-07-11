@@ -34,6 +34,7 @@ public class BattSett {
   private static int REG_StorCtl_Mod = 6 - 6;
   private static int REG_OutWRte = 13 - 6;
   private static int REG_InWRte = 14 - 6;
+  private static int ADDR_InOutWRte_SF = 40302 + 26;
   
   private Socket socket;
 
@@ -121,7 +122,9 @@ public class BattSett {
       host = host.substring(0,  p);
     }
     BattSett battset = new BattSett(host, port);
-    int[] resp = battset.modbusRead(1, REGISTER_START, REG_InWRte + 1);
+    int[] resp = battset.modbusRead(1, ADDR_InOutWRte_SF, 1);
+    double sf = Math.pow(10, (short) resp[0]);
+    resp = battset.modbusRead(1, REGISTER_START, REG_InWRte + 1);
     if (args.length > 1) {
       char fn = Character.toLowerCase(args[1].charAt(0));
       if (fn != 'i' && fn != 'o') {
@@ -170,7 +173,7 @@ public class BattSett {
           }
       }
       if (value >= 0) {
-        battset.modbusWriteSingle(1, REGISTER_START + (fn == 'i' ? REG_InWRte : REG_OutWRte), value * 100);
+        battset.modbusWriteSingle(1, REGISTER_START + (fn == 'i' ? REG_InWRte : REG_OutWRte), (int) (value / sf));
       }
       int bits = resp[REG_StorCtl_Mod];
       int mask = (fn == 'i') ? 0b01 : 0b10;
@@ -186,8 +189,8 @@ public class BattSett {
       resp = battset.modbusRead(1, REGISTER_START, REG_InWRte + 1);
     }
     
-    System.out.println("Charge limit " + resp[REG_InWRte] / 100 + "% is " + bit2s(resp[REG_StorCtl_Mod], 0b01));
-    System.out.println("Discharge limit " + resp[REG_OutWRte] / 100 + "% is " + bit2s(resp[REG_StorCtl_Mod], 0b10));
+    System.out.println("Charge limit " + (int) (resp[REG_InWRte] * sf) + "% is " + bit2s(resp[REG_StorCtl_Mod], 0b01));
+    System.out.println("Discharge limit " + (int) (resp[REG_OutWRte] * sf) + "% is " + bit2s(resp[REG_StorCtl_Mod], 0b10));
 
   }
 
