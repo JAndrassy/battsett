@@ -4,7 +4,7 @@ BattSett is a Java command line program for setting battery charging and dischar
 
 To use the program, you must enable Modbus TCP in Symo Datamanager web interface. In Settings -> Modbus, set "tcp" and "Inverter control via Modbus".
 
-The program is released as a java [jar file](https://github.com/jandrassy/battsett/releases/download/0.1/battsett.jar).
+The program is released as a java [jar file](https://github.com/jandrassy/battsett/releases/latest).
 It can be executed on the command line with Java 8:
 
 `java -jar battsett.jar`
