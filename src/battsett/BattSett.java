@@ -30,17 +30,15 @@ public class BattSett {
   static int FNC_ERR_FLAG = 0x80;
   static int ERR_SLAVE_DEVICE_FAILURE = 4;
 
-  private static int ADDR_INTSF = 40302;
-  private static int ADDR_FLOAT = 40312;
-  private static int REG_MODEL = 215;
-  private static int REG_StorCtl_Mod = 6;
-  private static int REG_OutWRte = 13;
-  private static int REG_InWRte = 14;
-  private static int REG_InOutWRte_SF = 26;
+  private static int ADDR_MODEL = 215;
+  private static int ADDR_INTSF = 40303;
+  private static int ADDR_FLOAT = 40313;
+  private static int REG_StorCtl_Mod = 5;
+  private static int REG_OutWRte = 12;
+  private static int REG_InWRte = 13;
+  private static int REG_InOutWRte_SF = 25;
+  private static int REGISTER_LENGTH = REG_InOutWRte_SF + 1;
 
-  private static int IX_OutWRte = REG_OutWRte - REG_StorCtl_Mod;
-  private static int IX_InWRte = REG_InWRte - REG_StorCtl_Mod;
-  
   private Socket socket;
 
   public BattSett(String host, int port) throws Exception {
@@ -127,11 +125,11 @@ public class BattSett {
       host = host.substring(0,  p);
     }
     BattSett battset = new BattSett(host, port);
-    int[] resp = battset.modbusRead(1, REG_MODEL, 1);
+    int[] resp = battset.modbusRead(1, ADDR_MODEL, 1);
     int baseAddr = (resp[0] == 2) ? ADDR_INTSF : ADDR_FLOAT;
-    resp = battset.modbusRead(1, baseAddr + REG_InOutWRte_SF, 1);
-    double sf = Math.pow(10, (short) resp[0]);
-    resp = battset.modbusRead(1, baseAddr + REG_StorCtl_Mod, IX_InWRte + 1);
+    resp = battset.modbusRead(1, baseAddr, REGISTER_LENGTH);
+    int storCtrlMod = resp[REG_StorCtl_Mod];
+    double sf = Math.pow(10, (short) resp[REG_InOutWRte_SF]);
     if (args.length > 1) {
       char fn = Character.toLowerCase(args[1].charAt(0));
       if (fn != 'i' && fn != 'o') {
@@ -182,22 +180,24 @@ public class BattSett {
       if (value >= 0) {
         battset.modbusWriteSingle(1, baseAddr + (fn == 'i' ? REG_InWRte : REG_OutWRte), (int) (value / sf));
       }
-      int bits = resp[0];
+      int bits = storCtrlMod;
       int mask = (fn == 'i') ? 0b01 : 0b10;
       if (mode == true) {
         bits |= mask;
       } else {
         bits &= ~mask;
       }
-      if (bits != resp[0]) {
+      if (bits != storCtrlMod) {
         battset.modbusWriteSingle(1, baseAddr + REG_StorCtl_Mod, bits);
       }
       Thread.sleep(2000); // otherwise we would read old values
-      resp = battset.modbusRead(1, baseAddr + REG_StorCtl_Mod, IX_InWRte + 1);
+      resp = battset.modbusRead(1, baseAddr, REGISTER_LENGTH);
+      storCtrlMod = resp[REG_StorCtl_Mod];
+      sf = Math.pow(10, (short) resp[REG_InOutWRte_SF]);
     }
     
-    System.out.println("Charge limit " + (int) (resp[IX_InWRte] * sf) + "% is " + bit2s(resp[0], 0b01));
-    System.out.println("Discharge limit " + (int) (resp[IX_OutWRte] * sf) + "% is " + bit2s(resp[0], 0b10));
+    System.out.println("Charge limit " + (int) (resp[REG_InWRte] * sf) + "% is " + bit2s(storCtrlMod, 0b01));
+    System.out.println("Discharge limit " + (int) (resp[REG_OutWRte] * sf) + "% is " + bit2s(storCtrlMod, 0b10));
 
   }
 
