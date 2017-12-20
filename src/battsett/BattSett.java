@@ -34,8 +34,10 @@ public class BattSett {
   private static int ADDR_INTSF = 40303;
   private static int ADDR_FLOAT = 40313;
   private static int REG_StorCtl_Mod = 5;
+  private static int REG_MinRsvPct = 7;
   private static int REG_OutWRte = 12;
   private static int REG_InWRte = 13;
+  private static int REG_MinRsvPct_SF = 21;
   private static int REG_InOutWRte_SF = 25;
   private static int REGISTER_LENGTH = REG_InOutWRte_SF + 1;
 
@@ -113,7 +115,8 @@ public class BattSett {
   
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
-      System.err.println("usage: battset.jar <host>[:<port>] in|i|out|o [0%|<limit>[%]] [enable|1|disable|0]");
+      System.err.println("usage: battset.jar <host>[:<port>] in|i|out|o|min|m [0%|<limit>[%]] [enable|1|disable|0]");
+      System.err.println("       battset.jar <host>[:<port>] reserve|r [<limit>[%]]");
       System.exit(1);
       return;
     }
@@ -130,9 +133,10 @@ public class BattSett {
     resp = battset.modbusRead(1, baseAddr, REGISTER_LENGTH);
     int storCtrlMod = resp[REG_StorCtl_Mod];
     double sf = Math.pow(10, (short) resp[REG_InOutWRte_SF]);
+    double sfRsv = Math.pow(10, (short) resp[REG_MinRsvPct_SF]);
     if (args.length > 1) {
       char fn = Character.toLowerCase(args[1].charAt(0));
-      if (fn != 'i' && fn != 'o') {
+      if (fn != 'i' && fn != 'o' && fn != 'r') {
         System.err.println("invalid second argument");
         System.exit(1);
         return;
@@ -146,7 +150,11 @@ public class BattSett {
           break;
         case "disable":
         case "0":
-          mode = false;
+          if (fn == 'r') {
+            value = 0;
+          } else {
+            mode = false;
+          }
           break;
         case "0%":
           value = 0;
@@ -162,6 +170,11 @@ public class BattSett {
             return;
           }
           if (args.length > 3) {
+            if (fn == 'r') {
+              System.err.println("too many arguments");
+              System.exit(1);
+              return;
+            }
             switch (args[3]) {
               case "enable":
               case "1":
@@ -177,28 +190,40 @@ public class BattSett {
             }
           }
       }
+      if (fn == 'r' && value == -1) {
+        System.err.println("missing reserve percent argument");
+        System.exit(1);
+        return;
+      }
       if (value >= 0) {
-        battset.modbusWriteSingle(1, baseAddr + (fn == 'i' ? REG_InWRte : REG_OutWRte), (int) (value / sf));
+        if (fn == 'r') {
+          battset.modbusWriteSingle(1, baseAddr + REG_MinRsvPct, (int) (value / sfRsv));
+        } else {
+          battset.modbusWriteSingle(1, baseAddr + (fn == 'i' ? REG_InWRte : REG_OutWRte), (int) (value / sf));
+        }
       }
-      int bits = storCtrlMod;
-      int mask = (fn == 'i') ? 0b01 : 0b10;
-      if (mode == true) {
-        bits |= mask;
-      } else {
-        bits &= ~mask;
-      }
-      if (bits != storCtrlMod) {
-        battset.modbusWriteSingle(1, baseAddr + REG_StorCtl_Mod, bits);
+      if (fn != 'r') {
+        int bits = storCtrlMod;
+        int mask = (fn == 'i') ? 0b01 : 0b10;
+        if (mode == true) {
+          bits |= mask;
+        } else {
+          bits &= ~mask;
+        }
+        if (bits != storCtrlMod) {
+          battset.modbusWriteSingle(1, baseAddr + REG_StorCtl_Mod, bits);
+        }
       }
       Thread.sleep(2000); // otherwise we would read old values
       resp = battset.modbusRead(1, baseAddr, REGISTER_LENGTH);
       storCtrlMod = resp[REG_StorCtl_Mod];
       sf = Math.pow(10, (short) resp[REG_InOutWRte_SF]);
+      sfRsv = Math.pow(10, (short) resp[REG_MinRsvPct_SF]);
     }
     
     System.out.println("Charge limit " + (int) (resp[REG_InWRte] * sf) + "% is " + bit2s(storCtrlMod, 0b01));
     System.out.println("Discharge limit " + (int) (resp[REG_OutWRte] * sf) + "% is " + bit2s(storCtrlMod, 0b10));
-
+    System.out.println("Minimum reserve " + (int) (resp[REG_MinRsvPct] * sf) + "% of the nominal maximum storage");
   }
 
   static String bit2s(int value, int mask) {
