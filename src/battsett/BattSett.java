@@ -30,7 +30,7 @@ public class BattSett {
   static int FNC_ERR_FLAG = 0x80;
   static int ERR_SLAVE_DEVICE_FAILURE = 4;
 
-  private static int ADDR_MODEL = 215;
+  private static int ADDR_MODEL = 216;
   private static int ADDR_INTSF = 40303;
   private static int ADDR_FLOAT = 40313;
   private static int REG_StorCtl_Mod = 5;
